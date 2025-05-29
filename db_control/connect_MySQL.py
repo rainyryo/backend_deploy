@@ -1,9 +1,12 @@
 from sqlalchemy import create_engine
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 # 環境変数の読み込み
+base_path = Path(__file__).resolve().parents[1] # backendディレクトリへのパス
+env_path = base_path / '.env'
 load_dotenv()
 
 # データベース接続情報
