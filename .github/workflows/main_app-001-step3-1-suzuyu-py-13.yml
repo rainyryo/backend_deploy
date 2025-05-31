@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-package:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
@@ -30,27 +30,24 @@ jobs:
           source venv/bin/activate
       
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip 
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
-      - name: Archive production package
-        run: zip release.zip ./*
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
 
-      - name: Upload release artifact
+      - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: release.zip
+          path: |
+            release.zip
+            !venv/
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-package
-    permissions:
-      contents: read #This is required for actions/download-artifact
-      
+    needs: build
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
@@ -61,8 +58,8 @@ jobs:
         with:
           name: python-app
 
-      - name: Unzip release artifact
-        run: unzip release.zip -d wwwroot
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
 
       
       - name: 'Deploy to Azure Web App'
@@ -72,4 +69,3 @@ jobs:
           app-name: 'app-001-step3-1-suzuyu-py-13'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F214968AB339493CAF5E5240EA06284B }}
-          package: 'wwwroot'
