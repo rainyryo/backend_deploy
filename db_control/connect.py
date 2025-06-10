@@ -1,58 +1,45 @@
-#from sqlalchemy import create_engine
-## import sqlalchemy
-
-#import os
-## uname() error回避
-#import platform
-#print("platform:", platform.uname())
-
-
-#main_path = os.path.dirname(os.path.abspath(__file__))
-#path = os.chdir(main_path)
-#print("path:", path)
-#engine = create_engine("sqlite:///CRM.db", echo=True)
+# db_control/connect.py
 
 from sqlalchemy import create_engine
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import platform
 
-# 環境情報の出力 (デバッグ用)
+# デバッグ用：プラットフォーム情報
+import platform
 print("platform:", platform.uname())
 
-# このスクリプトがあるディレクトリをカレントに設定
-script_dir = Path(__file__).resolve().parent
-os.chdir(script_dir)
-print("current working directory:", script_dir)
+# .envの読み込み（プロジェクトのルート直下にあることを前提）
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
-# プロジェクトのルートにある .env を読み込む
-load_dotenv(script_dir.parent / '.env')
-
-# 必要な環境変数を取得
-DB_USER = os.getenv("DB_USER")
+# 環境変数からMySQL接続情報を取得
+DB_USER     = os.getenv("DB_USER")     # 例: tech0gen10student@rdbs-xxx
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME")
-SSL_CA_PATH = os.getenv("SSL_CA_PATH")
+DB_HOST     = os.getenv("DB_HOST")     # 例: rdbs-xxx.mysql.database.azure.com
+DB_PORT     = os.getenv("DB_PORT", "3306")
+DB_NAME     = os.getenv("DB_NAME")
+SSL_CA_PATH = os.getenv("SSL_CA_PATH") # 例: DigiCertGlobalRootCA.crt.pem
 
-# 環境変数の存在チェック
+# 必須変数が無い場合はエラー
 if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_NAME]):
-    raise RuntimeError("One or more required database environment variables are missing")
+    raise RuntimeError("DB_USER, DB_PASSWORD, DB_HOST, DB_NAME のいずれかが設定されていません")
 
-# SQLAlchemy 用の MySQL 接続 URL を作成
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# MySQL用のSQLAlchemy URL
+DATABASE_URL = (
+    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@"
+    f"{DB_HOST}:{DB_PORT}/{DB_NAME}"
+)
 
-# SSL 設定があれば connect_args に追加
+# SSL証明書設定（必要なら）
 connect_args = {}
 if SSL_CA_PATH:
-    ca_path = script_dir.parent / SSL_CA_PATH
-    if not ca_path.exists():
-        raise FileNotFoundError(f"SSL CA file not found at {ca_path}")
-    connect_args["ssl"] = { "ca": str(ca_path) }
+    ca_file = Path(__file__).resolve().parent.parent / SSL_CA_PATH
+    if not ca_file.is_file():
+        raise FileNotFoundError(f"SSL CA file not found: {ca_file}")
+    connect_args["ssl"] = {"ca": str(ca_file)}
 
-# SQLAlchemy エンジンを作成
+# SQLAlchemyエンジン生成（MySQL用）
 engine = create_engine(
     DATABASE_URL,
     echo=True,
